@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::Path, str::from_utf8};
+use std::{fs::File, io::Read, path::Path, str::from_utf8, time::Instant};
 
 use clap::{crate_authors, crate_version, App, Arg, ArgMatches};
 use curl::easy::Easy;
@@ -14,13 +14,12 @@ fn main() {
 }
 
 fn read_config(config_path: &Path) -> Vec<String> {
-    let mut config_file = File::open(config_path).expect(
-        format!(
+    let mut config_file = File::open(config_path).unwrap_or_else(|_| {
+        panic!(
             "Error opening config file {}",
             config_path.to_str().unwrap()
         )
-        .as_str(),
-    );
+    });
     let mut read_buf = Vec::new();
     config_file.read_to_end(&mut read_buf).unwrap();
     String::from_utf8(read_buf)
@@ -30,11 +29,7 @@ fn read_config(config_path: &Path) -> Vec<String> {
         .collect::<Vec<String>>()
 }
 
-fn get_response_from_github(
-    config_data: &Vec<String>,
-    target_user: &String,
-    resp_buf: &mut Vec<String>,
-) {
+fn get_response_from_github(config_data: &[String], target_user: &str, resp_buf: &mut Vec<String>) {
     let mut curl_handle = Easy::new();
 
     curl_handle.username(config_data[0].as_str()).unwrap();
@@ -54,7 +49,7 @@ fn get_response_from_github(
     curl_transfer.perform().unwrap();
 }
 
-fn get_presentable_output(username: &String, json_string: &String) {
+fn get_presentable_output(username: &str, json_string: &str) {
     let json = json::parse(json_string).unwrap();
     println!("Public repo statistics for user {}:", username);
     println!(
@@ -69,7 +64,7 @@ fn get_presentable_output(username: &String, json_string: &String) {
         println!(
             "{0: <30} | {1: ^12} | {2: >12} | {3: >12} | {4: >12} | {5:^6} | {6:^6} |",
             entry["name"],
-            entry["language"].as_str().unwrap_or_else(|| "Unknown"),
+            entry["language"].as_str().unwrap_or("Unknown"),
             &entry["created_at"].as_str().unwrap()[..10],
             &entry["pushed_at"].as_str().unwrap()[..10],
             &entry["updated_at"].as_str().unwrap()[..10],
